@@ -67,11 +67,23 @@ Tout le monde voit tous les comptes, et **alice**, une simple cliente, vient de 
 ## Partie 1 : Basic Auth sur Spring
 
 1. Ajoutez `org.springframework.boot:spring-boot-starter-security`. Relancez : que renvoie maintenant l'API ?
+
+Un 401. Spring Security bloque toutes les routes par défaut et génère un utilisateur user avec un mot de passe affiché dans les logs.
+
 2. Déclarez le bean `PasswordEncoder` (BCrypt) : c'est lui qui comparera le mot de passe reçu au hash en base.
+
 3. Écrivez un `UserDetailsService` qui charge l'`Utilisateur` en base par son login.
+
 4. Écrivez la `SecurityFilterChain` : Basic Auth, sans session (`STATELESS`), toutes les requêtes `/api/**` authentifiées.
+
 5. Vérifiez avec `curl -u alice:alice123 localhost:8080/api/me`, puis décodez l'en-tête `Authorization: Basic …` (`echo … | base64 -d`). Est-ce du chiffrement ?
+
+Non. C’est du Base64 un simple encodage. On retrouve alice:alice123 sans clé, donc il faut du HTTPS.
+
 6. Remplacez `UtilisateurCourantFake` par un `UtilisateurCourant` qui lit le `SecurityContext`.
+
+On le désactive. Le CSRF attaque les cookies que le navigateur envoie tout seul. Notre API n’a pas de session ni de cookie : l’en-tête Authorization est ajouté par notre code, donc il n’y a pas de risque CSRF.
+
 7. Le front reçoit une erreur CORS : le navigateur envoie un `OPTIONS` **sans** identifiants. Autorisez-le dans la chaîne (`.cors(...)`).
 
 *Piège :* le CSRF est actif par défaut. Pour une API stateless en Basic Auth, que faut-il en faire, et pourquoi ?
@@ -79,10 +91,13 @@ Tout le monde voit tous les comptes, et **alice**, une simple cliente, vient de 
 ## Partie 2 : Angular
 
 1. Dans `AuthService`, implémentez `connecter` : appelez `GET /api/me` avec l'en-tête `Authorization: Basic …` (`btoa('login:motDePasse')`). Gardez les identifiants **en mémoire** et renseignez `utilisateur`.
+
 2. Écrivez un **intercepteur** fonctionnel (`HttpInterceptorFn`) qui ajoute l'en-tête aux requêtes vers l'API. Sur un `401`, il déconnecte et renvoie vers `/login`.
+
 3. Écrivez une **guard** (`CanActivateFn`) : sans utilisateur connecté, redirection vers `/login?retour=<url demandée>`. Appliquez-la aux routes `comptes`.
 4. La page `/login` est fournie. Testez-la avec un mauvais mot de passe, puis rechargez la page connecté : que se passe-t-il, et pourquoi ?
 
+Avec un mauvais mot de passe, le serveur répond 401 et le message d’erreur s’affiche. Au rechargement, on est déconnecté : les identifiants sont en mémoire et F5 relance l’appli, donc tout est effacé. C’est voulu, pour ne pas stocker le mot de passe dans le navigateur.
 ## Partie 3 : les rôles
 
 Règles à faire respecter **côté serveur** :
